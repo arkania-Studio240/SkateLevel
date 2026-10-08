@@ -1,1 +1,46 @@
+name: Compilar APK
 
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unir y descomprimir el proyecto
+        run: |
+          ls -l SkateLevel.zip.part*.bin
+          sha256sum SkateLevel.zip.part*.bin | cut -c1-12
+          P=(SkateLevel.zip.part*.bin)
+          for a in "${P[@]}"; do for b in "${P[@]}"; do for c in "${P[@]}"; do
+            if [ "$a" != "$b" ] && [ "$a" != "$c" ] && [ "$b" != "$c" ]; then
+              cat "$a" "$b" "$c" > SkateLevel.zip
+              if unzip -tq SkateLevel.zip > /dev/null 2>&1; then
+                echo "Orden correcto: $a $b $c"
+                unzip -q SkateLevel.zip
+                exit 0
+              fi
+            fi
+          done; done; done
+          echo "Ningun orden funciona: alguna parte esta danada"
+          exit 1
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 9.6.1
+
+      - name: Compilar (ads=true)
+        working-directory: SkateLevel
+        run: gradle assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SkateLevel-debug-apk
+          path: SkateLevel/app/build/outputs/apk/debug/*.apk
